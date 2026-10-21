@@ -17,6 +17,8 @@ specialist experts per scale/domain, thalamic gating that learns which level of 
 problem needs, confidence-reporting experts, and neuromodulation that sets learning and
 exploration rates.
 
+Results to date: [`FINDINGS.md`](FINDINGS.md).
+
 ## Evidence standards (every experiment)
 
 - Hypotheses written in the experiment's docstring **before** running it.
@@ -31,9 +33,9 @@ exploration rates.
 
 | # | Status | Question | Built on |
 |---|---|---|---|
-| 0 | **built** | Which learners can learn quantum time evolution, and does built-in structure beat scale? | Split-step Fourier solver (tested against analytic results) |
+| 0 | **run** — see FINDINGS | Which learners can learn quantum time evolution, and does built-in structure beat scale? | Split-step Fourier solver (tested against analytic results) |
 | A | planned | Does one generalist, separate specialists, or the brain-style gated MoE learn text + physics + arithmetic best at equal compute? | Exp 0 simulator; MoE routing results (arXiv 2604.07030) |
-| B | **built** | Does training for "I don't know" beat accuracy-only training? | Kalai et al. 2025; TruthRL; RLCR |
+| B | **run** — see FINDINGS | Does training for "I don't know" beat accuracy-only training? | Kalai et al. 2025; TruthRL; RLCR |
 | C | planned | Does an agent that *chooses its experiments* discover a hidden law faster than a passive learner? | NewtonBench, DiscoverPhysics; Exp 0 simulator |
 | D | planned (GPU) | Does label-free RL really teach anything, and does it depend on the model family? | TTRL, INTUITOR, Spurious Rewards, ReasonMaxxer |
 | E | stretch | Can multi-timescale memory / neuromodulated learning rates prevent forgetting when domains arrive in sequence? | Nested Learning / HOPE |
