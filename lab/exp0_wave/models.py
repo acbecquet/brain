@@ -127,13 +127,36 @@ class SplitStep(nn.Module):
         return psi
 
 
-def build(name: str, n: int, dt: float) -> nn.Module:
+class SplitStepLaw(SplitStep):
+    """SplitStep whose dispersion is a smooth law, ω(k) = c0 + c1 (k/K)² + c2 (k/K)⁴.
+
+    The free per-mode ω of SplitStep is only learned where the data has power (low k), so
+    it cannot extrapolate. Assuming the law is a low-order polynomial lets well-sampled
+    modes determine the poorly sampled ones. K = Nyquist wavenumber keeps the c's O(1).
+    """
+
+    def __init__(self, n: int, dt: float, length: float, **kwargs):
+        super().__init__(n, dt, **kwargs)
+        del self.omega
+        k = 2 * torch.pi * torch.fft.fftfreq(n, d=length / n)
+        self.register_buffer("k2", (k / k.abs().max()) ** 2)
+        self.k_max = k.abs().max().item()
+        self.coef = nn.Parameter(torch.zeros(3))
+
+    @property
+    def omega(self) -> torch.Tensor:
+        # scale by K² so c1 = 0.5 recovers the true law 0.5 k²
+        return self.k_max**2 * (self.coef[0] + self.coef[1] * self.k2 + self.coef[2] * self.k2**2)
+
+
+def build(name: str, n: int, dt: float, length: float = 20.0) -> nn.Module:
     return {
         "linear": lambda: LinearNoV(n),
         "mlp": lambda: MLP(n),
         "cnn": lambda: CNN(),
         "fno": lambda: FNO(),
         "splitstep": lambda: SplitStep(n, dt),
+        "splitstep_law": lambda: SplitStepLaw(n, dt, length),
     }[name]()
 
 

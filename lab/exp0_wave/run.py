@@ -29,8 +29,8 @@ PRESETS = {
     "full": dict(n=128, train_traj=4096, train_len=10, test_traj=512, test_len=40,
                  steps=20000, batch=128, seeds=[0, 1, 2, 3, 4], train_sizes=[128, 512, 4096]),
 }
-MODELS = ["linear", "mlp", "cnn", "fno", "splitstep"]
-LR = {"splitstep": 1e-2}
+MODELS = ["linear", "mlp", "cnn", "fno", "splitstep", "splitstep_law"]
+LR = {"splitstep": 1e-2, "splitstep_law": 1e-2}
 DT, SUBSTEPS, LENGTH = 0.2, 20, 20.0
 
 METRICS = ["params", "step_err_id", "step_err_ood", "rollout10_id", "rollout40_id",
@@ -117,7 +117,7 @@ def main():
             train_data = type(full_train)(full_train.traj[:size], full_train.V[:size])
             for name in args.models:
                 seed_everything(seed)
-                model = build(name, cfg["n"], DT).to(device)
+                model = build(name, cfg["n"], DT, LENGTH).to(device)
                 start = time.time()
                 train(model, train_data, dict(cfg, model=name), device, seed)
                 result = evaluate(model, test_id, test_ood, grid, device)

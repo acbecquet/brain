@@ -14,7 +14,7 @@ GRID = Grid(n=64, length=20.0)
 def test_every_wave_model_maps_shapes_and_starts_near_identity():
     data = make_data(4, "smooth", GRID, dt=0.2, steps=2, substeps=10, seed=0)
     psi, V, _ = data.pairs()
-    for name in ["linear", "mlp", "cnn", "fno", "splitstep"]:
+    for name in ["linear", "mlp", "cnn", "fno", "splitstep", "splitstep_law"]:
         out = build(name, GRID.n, 0.2)(psi, V)
         assert out.shape == psi.shape and out.is_complex()
         assert torch.allclose(out, psi, atol=1e-5), name  # zero-initialized output layers

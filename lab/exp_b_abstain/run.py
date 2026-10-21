@@ -24,6 +24,7 @@ Usage:
 """
 import argparse
 import copy
+import math
 
 import torch
 import torch.nn.functional as F
@@ -35,8 +36,14 @@ from .data import CATEGORIES, build_world
 from .model import QAModel
 
 PRESETS = {
-    "quick": dict(m=48, pretrain_epochs=3, post_steps=600, seeds=[0, 1, 2], k=3.0),
-    "full": dict(m=64, pretrain_epochs=3, post_steps=2000, seeds=[0, 1, 2, 3, 4], k=3.0),
+    "quick": dict(m=48, pretrain_epochs=3, post_steps=600, post_batch=256, post_lr=3e-4,
+                  seeds=[0, 1, 2], k=3.0),
+    # v2: the quick preset revisits each post-training question ~89 times, so models memorize
+    # the answers instead of learning when to abstain. v2 makes ~2 passes, like RL on fresh prompts.
+    "quick_v2": dict(m=48, pretrain_epochs=3, post_epochs=2, post_batch=32, post_lr=1e-3,
+                     seeds=[0, 1, 2], k=3.0),
+    "full": dict(m=64, pretrain_epochs=3, post_epochs=2, post_batch=32, post_lr=1e-3,
+                 seeds=[0, 1, 2, 3, 4], k=3.0),
 }
 REGIMES = ["none", "binary", "binary+thr", "ternary", "penalized", "brier"]
 METRICS = ["acc", "halluc", "abstain", "score_k1", "score_k3", "ece",
@@ -62,13 +69,15 @@ def expected_reward(probs, y, idk, wrong_penalty):
     return p_right - wrong_penalty * (1 - p_right - p_idk)
 
 
-def posttrain(model, world, regime, steps, k, device, seed):
+def posttrain(model, world, regime, cfg, device, seed):
     q = world.posttrain
-    opt = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=0.0)
+    k, batch = cfg["k"], cfg["post_batch"]
+    steps = cfg.get("post_steps") or math.ceil(cfg["post_epochs"] * len(q.y) / batch)
+    opt = torch.optim.AdamW(model.parameters(), lr=cfg["post_lr"], weight_decay=0.0)
     gen = torch.Generator().manual_seed(seed)
     penalty = {"binary": 0.0, "brier": 0.0, "ternary": 1.0, "penalized": k}[regime]
     for _ in range(steps):
-        idx = torch.randint(0, len(q.y), (256,), generator=gen)
+        idx = torch.randint(0, len(q.y), (batch,), generator=gen)
         x, y = q.x[idx].to(device), q.y[idx].to(device)
         logits, conf_logit = model(x)
         probs = logits.softmax(-1)
@@ -148,7 +157,7 @@ def main():
         for regime in ["binary", "ternary", "penalized", "brier"]:
             seed_everything(seed)
             model = copy.deepcopy(base)
-            posttrain(model, world, regime, cfg["post_steps"], cfg["k"], device, seed)
+            posttrain(model, world, regime, cfg, device, seed)
             trained[regime] = model
         trained["binary+thr"] = trained["binary"]
         for regime in REGIMES:
@@ -157,10 +166,11 @@ def main():
                 per_regime.setdefault(regime, {}).setdefault(metric, []).append(value)
             print(f"seed {seed} {regime:11s} " + " ".join(f"{m}={result[m]:.3f}" for m in METRICS))
 
-    path = save_run("exp_b_abstain", cfg, per_regime, METRICS,
+    path = save_run(f"exp_b_abstain/{args.preset}", cfg, per_regime, METRICS,
                     notes="acc/halluc/abstain are fractions of all evaluation questions. "
                           "score_k = acc − k·halluc (abstaining scores 0). ece = expected calibration error. "
-                          "Per-category columns are fractions within that category.")
+                          "Per-category columns are fractions within that category. "
+                          "Reference: always answering IDK scores 0 on every score_k.")
     print(f"saved {path}")
 
 
